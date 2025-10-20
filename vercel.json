@@ -1,22 +1,18 @@
 {
-    "version": 2,
-    "builds": [
-      {
-        "src": "run.py",
-        "use": "@vercel/python"
-      }
-    ],
-    "routes": [
-      {
-        "src": "/(.*)",
-        "dest": "/run.py"
-      }
-    ],
-    "env": {
-      "FLASK_ENV": "production",
-      "FLASK_DEBUG": "false",
-      "MONGO_URI": "@mongo-uri",
-      "CORS_ORIGINS": "@cors-origins",
-      "MONGO_DB": "moodjournal"
+  "version": 2,
+  "builds": [
+    {
+      "src": "run.py",
+      "use": "@vercel/python"
     }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "run.py"
+    }
+  ],
+  "env": {
+    "FLASK_ENV": "production"
   }
+}

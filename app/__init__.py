@@ -9,16 +9,17 @@ import os
 def create_app():
     load_dotenv()
 
-    env_name = os.getenv("FLASK_ENV", "development")
-    config_class = config_by_name.get(env_name, config_by_name["development"])()
+    env_name = os.getenv("FLASK_ENV", "production")
+    config_class = config_by_name.get(env_name, config_by_name["production"])()
 
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # FIXED CORS - Very permissive for development
+    # CORS - Allow frontend domain
+    cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
     CORS(app, 
          resources={r"/*": {
-             "origins": "*",  # Allow all origins for now
+             "origins": cors_origins,
              "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
              "allow_headers": ["Content-Type", "Authorization"],
              "expose_headers": ["Content-Type"],
@@ -26,24 +27,34 @@ def create_app():
              "max_age": 3600
          }})
 
-    # Add CORS headers manually for all responses
     @app.after_request
     def after_request(response):
-        response.headers.add('Access-Control-Allow-Origin', '*')
+        origin = os.getenv("CORS_ORIGINS", "*")
+        response.headers.add('Access-Control-Allow-Origin', origin)
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
         response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
         return response
 
-    # MongoDB Connection
+    # MongoDB Atlas Connection
     try:
         mongo_uri = app.config.get("MONGO_URI")
-        print(f"🔗 Connecting to MongoDB: {mongo_uri}")
-        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
-        app.db = client[os.getenv("MONGO_DB", "mood_journal_db")]
+        if not mongo_uri:
+            raise ValueError("MONGO_URI not found in environment variables")
+        
+        print(f"🔗 Connecting to MongoDB Atlas...")
+        client = MongoClient(
+            mongo_uri,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=10000,
+            socketTimeoutMS=10000
+        )
+        
+        db_name = os.getenv("MONGO_DB", "mood_journal_db")
+        app.db = client[db_name]
         
         # Test connection
         client.server_info()
-        print("✅ MongoDB connected successfully")
+        print(f"✅ MongoDB Atlas connected: {db_name}")
         
         # Ensure indexes
         from app.models import ensure_indexes
@@ -51,10 +62,9 @@ def create_app():
         
     except Exception as e:
         print(f"❌ MongoDB connection failed: {e}")
-        # Don't raise - let app run without DB for testing
         app.db = None
 
-    # Health route and main blueprint
+    # Register blueprints
     from app.routes import main
     app.register_blueprint(main)
 
@@ -72,6 +82,5 @@ def create_app():
         return jsonify({"error": "Server Error", "message": str(error)}), 500
 
     print("✅ Flask app created successfully")
-    print(f"📍 Access at: http://127.0.0.1:5000")
     
     return app
