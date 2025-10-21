@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 from .config import config_by_name
 import os
 
-
 def create_app():
     load_dotenv()
 
@@ -15,17 +14,24 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # -----------------------------
-    # CORS Setup
-    # -----------------------------
-    # Env variable example:
-    # CORS_ORIGINS=http://localhost:5173,https://mood-journal-frontend.vercel.app
-    cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
-    CORS(app, resources={r"/*": {"origins": cors_origins}})
+    # ✅ Better CORS Configuration
+    cors_origins = os.getenv("CORS_ORIGINS", "").split(",")
+    
+    # Agar CORS_ORIGINS empty hai toh frontend URL use karein
+    if not cors_origins or cors_origins == ['']:
+        cors_origins = ["https://mood-journal-frontend.vercel.app", "http://localhost:3000"]
+    
+    print(f"🔄 CORS Origins: {cors_origins}")
+    
+    # Sirf CORS use karein, after_request remove karein
+    CORS(app, 
+         origins=cors_origins,
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         allow_headers=["Content-Type", "Authorization", "Accept"],
+         supports_credentials=True,  # ✅ Important for cookies/auth
+         max_age=3600)
 
-    # -----------------------------
-    # MongoDB Connection
-    # -----------------------------
+    # MongoDB Atlas Connection (same as before)
     try:
         mongo_uri = app.config.get("MONGO_URI")
         if not mongo_uri:
@@ -54,15 +60,11 @@ def create_app():
         print(f"❌ MongoDB connection failed: {e}")
         app.db = None
 
-    # -----------------------------
     # Register blueprints
-    # -----------------------------
     from app.routes import main
     app.register_blueprint(main)
 
-    # -----------------------------
     # Error handlers
-    # -----------------------------
     @app.errorhandler(400)
     def bad_request(error):
         return jsonify({"error": "Bad Request", "message": str(error)}), 400
