@@ -15,27 +15,17 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # CORS - Allow frontend domain
+    # -----------------------------
+    # CORS Setup
+    # -----------------------------
+    # Env variable example:
+    # CORS_ORIGINS=http://localhost:5173,https://mood-journal-frontend.vercel.app
     cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
-    CORS(app, 
-         resources={r"/*": {
-             "origins": cors_origins,
-             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-             "allow_headers": ["Content-Type", "Authorization"],
-             "expose_headers": ["Content-Type"],
-             "supports_credentials": False,
-             "max_age": 3600
-         }})
+    CORS(app, resources={r"/*": {"origins": cors_origins}})
 
-    @app.after_request
-    def after_request(response):
-        origin = os.getenv("CORS_ORIGINS", "*")
-        response.headers.add('Access-Control-Allow-Origin', origin)
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        return response
-
-    # MongoDB Atlas Connection
+    # -----------------------------
+    # MongoDB Connection
+    # -----------------------------
     try:
         mongo_uri = app.config.get("MONGO_URI")
         if not mongo_uri:
@@ -64,11 +54,15 @@ def create_app():
         print(f"❌ MongoDB connection failed: {e}")
         app.db = None
 
+    # -----------------------------
     # Register blueprints
+    # -----------------------------
     from app.routes import main
     app.register_blueprint(main)
 
+    # -----------------------------
     # Error handlers
+    # -----------------------------
     @app.errorhandler(400)
     def bad_request(error):
         return jsonify({"error": "Bad Request", "message": str(error)}), 400
