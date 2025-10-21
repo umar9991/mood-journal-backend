@@ -34,38 +34,51 @@ def create_app():
          supports_credentials=False,
          max_age=3600)
 
-    # MongoDB Atlas Connection
+    # ✅ FIXED MongoDB Connection
     try:
-        mongo_uri = app.config.get("MONGO_URI")
+        # Method 1: Direct environment variable se
+        mongo_uri = os.getenv("MONGO_URI")
+        
+        # Method 2: Agar nahi mila toh config se
         if not mongo_uri:
-            raise ValueError("MONGO_URI not found in environment variables")
+            mongo_uri = app.config.get("MONGO_URI")
+            
+        if not mongo_uri:
+            raise ValueError("❌ MONGO_URI not found in environment variables")
         
         print(f"🔗 Connecting to MongoDB Atlas...")
+        print(f"📝 Database: {os.getenv('MONGO_DB', 'mood_journal_db')}")
+        
         client = MongoClient(
             mongo_uri,
-            serverSelectionTimeoutMS=5000,
-            connectTimeoutMS=10000,
-            socketTimeoutMS=10000
+            serverSelectionTimeoutMS=10000,  # Increased timeout
+            connectTimeoutMS=15000,
+            socketTimeoutMS=15000,
+            retryWrites=True,
+            w="majority"
         )
         
         db_name = os.getenv("MONGO_DB", "mood_journal_db")
         app.db = client[db_name]
         
         # Test connection
-        client.server_info()
+        client.admin.command('ping')
         print(f"✅ MongoDB Atlas connected: {db_name}")
         
         # Ensure indexes
-        from app.models import ensure_indexes
-        ensure_indexes(app.db["moods"])
+        try:
+            from app.models import ensure_indexes
+            ensure_indexes(app.db["moods"])
+        except Exception as e:
+            print(f"⚠️ Index creation warning: {e}")
         
     except Exception as e:
         print(f"❌ MongoDB connection failed: {e}")
         app.db = None
 
-    # ✅ FIXED: Blueprint registration WITHOUT url_prefix
+    # Register blueprints
     from app.routes import main
-    app.register_blueprint(main)  # ❌ url_prefix mat use karein
+    app.register_blueprint(main)
 
     # Error handlers
     @app.errorhandler(400)
