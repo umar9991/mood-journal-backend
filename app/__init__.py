@@ -15,25 +15,29 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # CORS - Allow frontend domain
-    cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+    # ✅ FIXED: Clean CORS setup without after_request
+    cors_origins = os.getenv("CORS_ORIGINS", "").split(",")
+    
+    # Clean and validate origins
+    cors_origins = [origin.strip() for origin in cors_origins if origin.strip()]
+    
+    if not cors_origins:
+        cors_origins = [
+            "https://mood-journal-frontend.vercel.app",
+            "http://localhost:5173", 
+            "http://localhost:3000"
+        ]
+    
+    print(f"🔄 CORS Origins: {cors_origins}")
+    
     CORS(app, 
-         resources={r"/*": {
-             "origins": cors_origins,
-             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-             "allow_headers": ["Content-Type", "Authorization"],
-             "expose_headers": ["Content-Type"],
-             "supports_credentials": False,
-             "max_age": 3600
-         }})
+         origins=cors_origins,
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         allow_headers=["Content-Type", "Authorization"],
+         supports_credentials=False,
+         max_age=3600)
 
-    @app.after_request
-    def after_request(response):
-        origin = os.getenv("CORS_ORIGINS", "*")
-        response.headers.add('Access-Control-Allow-Origin', origin)
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        return response
+    # ❌ REMOVED: after_request function (causing multiple headers)
 
     # MongoDB Atlas Connection
     try:
