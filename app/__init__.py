@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 from .config import config_by_name
 import os
 
-
 def create_app():
     load_dotenv()
 
@@ -15,10 +14,8 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # ✅ FIXED: Clean CORS setup without after_request
+    # ✅ Fixed CORS setup
     cors_origins = os.getenv("CORS_ORIGINS", "").split(",")
-    
-    # Clean and validate origins
     cors_origins = [origin.strip() for origin in cors_origins if origin.strip()]
     
     if not cors_origins:
@@ -36,8 +33,6 @@ def create_app():
          allow_headers=["Content-Type", "Authorization"],
          supports_credentials=False,
          max_age=3600)
-
-    # ❌ REMOVED: after_request function (causing multiple headers)
 
     # MongoDB Atlas Connection
     try:
@@ -68,9 +63,9 @@ def create_app():
         print(f"❌ MongoDB connection failed: {e}")
         app.db = None
 
-    # Register blueprints
+    # ✅ FIXED: Blueprint registration WITHOUT url_prefix
     from app.routes import main
-    app.register_blueprint(main)
+    app.register_blueprint(main)  # ❌ url_prefix mat use karein
 
     # Error handlers
     @app.errorhandler(400)
